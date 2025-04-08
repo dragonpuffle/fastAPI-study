@@ -43,3 +43,8 @@ class UserAuth(BaseModel):
 
 class CommonMsg(BaseModel):
     msg: str
+
+
+class UserA(BaseModel):
+    username: str
+    password: str

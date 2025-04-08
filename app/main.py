@@ -1,13 +1,15 @@
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import BackgroundTasks, Cookie, FastAPI, Form, HTTPException, Response
-
-from app.models import CommonMsg, Feedback, Product, User, UserCreate
+from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, Form, Header, HTTPException, Request, Response, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from models import CommonMsg, Feedback, Product, User, UserA, UserCreate
 
 
 # uvicorn main:app --reload
 app = FastAPI()
+security = HTTPBasic()
 # user = User(**{'name': 'John Doe', 'id': 1})
 
 fake_db = [{"username": "vasya", "user_id": 2}, {"username": "katya", "user_id": 3}]
@@ -198,3 +200,50 @@ async def check_user(session_token=Cookie(default=None)):
         username = session_store[session_token]
         return {"username": username, "profile_info": f"Welcome back, {username}!"}
     raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/headers")
+async def get_headers(
+    user_agent: Annotated[str | None, Header()] = None, accept_language: Annotated[str | None, Header()] = None
+):
+    if (user_agent or accept_language) is None:
+        raise HTTPException(status_code=400, detail="No required headers")
+    return {"User-Agent": user_agent, "Accept-Language": accept_language}
+
+
+@app.get("/headerstwo")
+async def get_headers2(request: Request):
+    headers = request.headers
+    if "User-Agent" not in headers:
+        raise HTTPException(status_code=400, detail="No User-Agent header provided")
+    if "Accept-Language" not in headers:
+        raise HTTPException(status_code=400, detail="No Accept-Language header provided")
+    user_agent = headers["User-Agent"]
+    accept_lang = headers["Accept-Language"]
+    return {"User-Agent": user_agent, "Accept-Language": accept_lang}
+
+
+USER_DATA = [UserA(**{"username": "user1", "password": "pass1"}), UserA(**{"username": "user2", "password": "pass2"})]
+
+
+def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+    user = get_user_from_db(credentials.username)
+    if user is None or user.password != credentials.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid login or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return user
+
+
+def get_user_from_db(username: str):
+    for user in USER_DATA:
+        if user.username == username:
+            return user
+    return None
+
+
+@app.get("/login_auth", dependencies=[Depends(authenticate_user)])
+async def get_protected_resource():
+    return {"msg": "You got my secret, welcome"}
