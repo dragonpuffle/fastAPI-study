@@ -1,10 +1,17 @@
 from fastapi import FastAPI
-
-from auth.db import router as router_db
-from auth.routes import router as router_auth
+from routes import router as router_auth
 
 
 app = FastAPI()
-app.include_router(router_db)
+
+print("App is being created")
+
+
+@app.get("/debug")
+async def debug():
+    print("DEBUG HIT")
+    return {"ok": True}
+
+
 app.include_router(router_auth)
-# some problems
+# uvicorn auth.main:app --reload

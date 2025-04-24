@@ -1,10 +1,10 @@
 import datetime
-import time
 from typing import Dict
 
 import jwt
+from db import SessionDep, get_user_logins_by_username, get_users_by_username
 from environs import Env
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 
@@ -17,19 +17,41 @@ env.read_env()
 
 def create_jwt_token(data: Dict):
     to_encode = data.copy()
-    expires = datetime.datetime.fromtimestamp(time.time()) + datetime.timedelta(minutes=env.ACCESS_TOKEN_EXPIRY)
+    expires = datetime.datetime.utcnow() + datetime.timedelta(minutes=env.int("ACCESS_TOKEN_EXPIRE_MINUTE"))
     to_encode.update({"exp": expires})
-    return jwt.encode(to_encode, env.SECRET_KEY_AUTH, algorithm=env.ALGORITHM)
+    return jwt.encode(to_encode, env("SECRET_KEY_AUTH"), algorithm=env("ALGORITHM"))
 
 
-def get_user_by_token(token: str = Depends(oauth2_scheme)):
+async def get_username_by_token(session: SessionDep, token: str = Depends(oauth2_scheme)) -> str:
     try:
-        payload = jwt.decode(token, env.SECRET_KEY_AUTH, algorithms=[env.ALGORITHM])
-        return payload.get("sub")
+        payload = jwt.decode(token, env("SECRET_KEY_AUTH"), algorithms=[env("ALGORITHM")])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        user = await get_user_logins_by_username(username, session)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user.username
     except jwt.ExpiredSignatureError:
-        pass
+        raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
-        pass
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def get_user_roles_by_token(session: SessionDep, token: str = Depends(oauth2_scheme)) -> list[str]:
+    try:
+        payload = jwt.decode(token, env("SECRET_KEY_AUTH"), algorithms=[env("ALGORITHM")])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        user = await get_users_by_username(username, session)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return user.roles
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 def hash_password(password: str):
