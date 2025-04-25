@@ -2,7 +2,7 @@ import datetime
 from typing import Dict
 
 import jwt
-from db import SessionDep, get_user_logins_by_username, get_users_by_username
+from db import SessionDep, get_user_logins_by_username
 from environs import Env
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -32,22 +32,6 @@ async def get_username_by_token(session: SessionDep, token: str = Depends(oauth2
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token payload")
         return user.username
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
-async def get_user_roles_by_token(session: SessionDep, token: str = Depends(oauth2_scheme)) -> list[str]:
-    try:
-        payload = jwt.decode(token, env("SECRET_KEY_AUTH"), algorithms=[env("ALGORITHM")])
-        username = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        user = await get_users_by_username(username, session)
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        return user.roles
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:

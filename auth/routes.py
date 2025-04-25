@@ -1,15 +1,18 @@
 from db import (
     SessionDep,
+    add_ideas,
     add_user_logins,
     add_users,
     get_user_logins_by_username,
     get_users_by_username,
+    update_ideas,
     view_ideas,
 )
+from dependencies import get_user_roles
 from fastapi import APIRouter, Depends, HTTPException
 from models import Ideas, UserLogins, Users
 from rbac import PermissionChecker
-from security import create_jwt_token, get_user_roles_by_token, get_username_by_token, hash_password, verify_password
+from security import create_jwt_token, get_username_by_token, hash_password, verify_password
 
 
 router = APIRouter()
@@ -45,7 +48,7 @@ async def get_me(session: SessionDep, current_user: str = Depends(get_username_b
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@router.post("/me", response_model=Users)
+@router.post("/me")
 async def add_me(session: SessionDep, user_data: Users, current_user: str = Depends(get_username_by_token)):
     user = await add_users(user_data, session)
     if user:
@@ -54,25 +57,35 @@ async def add_me(session: SessionDep, user_data: Users, current_user: str = Depe
 
 
 @router.get("/ideas", response_model=list[Ideas])
-@PermissionChecker(["guest", "user"])
-async def get_ideas(session: SessionDep, user_roles: list[str] = Depends(get_user_roles_by_token)):
+async def get_ideas(
+    session: SessionDep,
+    user_roles: list[str] = Depends(get_user_roles),
+    permission: None = Depends(PermissionChecker(["guest", "user"])),
+):
     ideas = await view_ideas(session)
     if ideas:
         return ideas
     raise HTTPException(status_code=404, detail="No ideas found")
 
 
-@router.post("/ideas", response_model=list[Ideas])
-@PermissionChecker(["admin"])
-async def add_ideas(session: SessionDep, idea: Ideas, user_roles: list[str] = Depends(get_user_roles_by_token)):
-    result = await add_ideas(session, idea)
+@router.post("/ideas")
+async def add_ideas_route(
+    session: SessionDep,
+    idea: Ideas,
+    user_roles: list[str] = Depends(get_user_roles),
+    permission: None = Depends(PermissionChecker(["admin"])),
+):
+    result = await add_ideas(idea, session)
     return result
 
 
-@router.put("/ideas", response_model=list[Ideas])
-@PermissionChecker(["user"])
-async def update_ideas(
-    session: SessionDep, idea_id: int, idea: Ideas, user_roles: list[str] = Depends(get_user_roles_by_token)
+@router.put("/ideas/{idea_id}")
+async def update_ideas_route(
+    session: SessionDep,
+    idea_id: int,
+    idea: Ideas,
+    user_roles: list[str] = Depends(get_user_roles),
+    permission: None = Depends(PermissionChecker(["user"])),
 ):
-    result = await update_ideas(session, idea_id, idea)
+    result = await update_ideas(idea_id, idea, session)
     return result
