@@ -1,6 +1,6 @@
 import asyncio
 
-from auth.db import setup_db
+from db import setup_db
 
 
 async def my_async_function():

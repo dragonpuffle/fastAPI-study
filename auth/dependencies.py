@@ -1,7 +1,5 @@
-from http.client import HTTPException
-
 from db import SessionDep, get_users_by_username
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from security import get_username_by_token
 
 

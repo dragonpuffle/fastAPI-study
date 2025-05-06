@@ -9,9 +9,9 @@ from db import (
     view_ideas,
 )
 from dependencies import get_user_roles
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from models import Ideas, UserLogins, Users
-from rbac import PermissionChecker
+from rbac import PermissionChecker, role_based_limit
 from security import create_jwt_token, get_username_by_token, hash_password, verify_password
 
 
@@ -56,11 +56,11 @@ async def add_me(session: SessionDep, user_data: Users, current_user: str = Depe
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@router.get("/ideas", response_model=list[Ideas])
+@router.get("/ideas", response_model=list[Ideas], dependencies=[Depends(role_based_limit)])
 async def get_ideas(
     session: SessionDep,
     user_roles: list[str] = Depends(get_user_roles),
-    permission: None = Depends(PermissionChecker(["guest", "user"])),
+    permission: None = Security(PermissionChecker(["guest", "user"])),
 ):
     ideas = await view_ideas(session)
     if ideas:
@@ -73,7 +73,7 @@ async def add_ideas_route(
     session: SessionDep,
     idea: Ideas,
     user_roles: list[str] = Depends(get_user_roles),
-    permission: None = Depends(PermissionChecker(["admin"])),
+    permission: None = Security(PermissionChecker(["admin"])),
 ):
     result = await add_ideas(idea, session)
     return result
@@ -85,7 +85,7 @@ async def update_ideas_route(
     idea_id: int,
     idea: Ideas,
     user_roles: list[str] = Depends(get_user_roles),
-    permission: None = Depends(PermissionChecker(["user"])),
+    permission: None = Security(PermissionChecker(["user"])),
 ):
     result = await update_ideas(idea_id, idea, session)
     return result

@@ -1,10 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi_limiter import FastAPILimiter
+from redis import asyncio as aioredis
 from routes import router as router_auth
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        redis_connection = aioredis.from_url("redis://localhost:6379", encoding="utf8")
+        await FastAPILimiter.init(redis_connection)
+        print("redis connection open")
+    except Exception as e:
+        print(e)
+    yield
+    await FastAPILimiter.close()
 
-print("App is being created")
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/debug")
