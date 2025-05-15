@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, Form, Header, HTTPException, Request, Response, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from models import CommonMsg, Feedback, Product, User, UserA, UserCreate
+from models import CommonMsg, Feedback, FeedbackValidSchema, Product, User, UserA, UserCreate
 
 
 # uvicorn main:app --reload
@@ -247,3 +247,12 @@ def get_user_from_db(username: str):
 @app.get("/login_auth", dependencies=[Depends(authenticate_user)])
 async def get_protected_resource():
     return {"msg": "You got my secret, welcome"}
+
+
+feedback_v_db = []
+
+
+@app.post("/feedback_v")
+async def feedback_v(feedback: FeedbackValidSchema):
+    feedback_v_db.append(feedback)
+    return {"msg": "okay....."}

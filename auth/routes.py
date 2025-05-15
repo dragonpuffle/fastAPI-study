@@ -10,7 +10,7 @@ from db import (
 )
 from dependencies import get_user_roles
 from fastapi import APIRouter, Depends, HTTPException, Security
-from fastapi.openapi.models import Response
+from fastapi.security import OAuth2PasswordRequestForm
 from models import Ideas, UserLogins, Users
 from rbac import PermissionChecker, role_based_limit
 from security import create_jwt_token, get_username_by_token, hash_password, verify_password
@@ -18,12 +18,22 @@ from security import create_jwt_token, get_username_by_token, hash_password, ver
 
 router = APIRouter()
 
+# old
+# @router.post("/login")
+# async def login(new_user: UserLogins, session: SessionDep, response: Response):
+#     user = await get_user_logins_by_username(new_user.username, session)
+#     if user and verify_password(new_user.password, user.password):
+#         token = create_jwt_token({"sub": new_user.username})
+#         # response.set_cookie(key='token', values=token)
+#         return {"access_token": token, "token_type": "bearer"}
+#     raise HTTPException(status_code=404, detail="User not found")
+
 
 @router.post("/login")
-async def login(new_user: UserLogins, session: SessionDep, response: Response):
-    user = await get_user_logins_by_username(new_user.username, session)
-    if user and verify_password(new_user.password, user.password):
-        token = create_jwt_token({"sub": new_user.username})
+async def login(session: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await get_user_logins_by_username(form_data.username, session)
+    if user and verify_password(form_data.password, user.password):
+        token = create_jwt_token({"sub": form_data.username})
         # response.set_cookie(key='token', values=token)
         return {"access_token": token, "token_type": "bearer"}
     raise HTTPException(status_code=404, detail="User not found")

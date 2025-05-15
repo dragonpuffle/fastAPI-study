@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, PositiveFloat, PositiveInt
+from typing import Annotated
+
+from pydantic import BaseModel, BeforeValidator, EmailStr, Field, PositiveFloat, PositiveInt, field_validator
 
 
 class User(BaseModel):
@@ -48,3 +50,41 @@ class CommonMsg(BaseModel):
 class UserA(BaseModel):
     username: str
     password: str
+
+
+class ContactSchema(BaseModel):
+    email: EmailStr
+    number: int | None = None
+
+
+def validmsg(msg: str):
+    if len(msg) < 10:
+        raise ValueError("String should have at least 10 characters")
+    if len(msg) > 50:
+        raise ValueError("String should have maximum 50 characters")
+    ban_words = ["редиск", "бяк", "козявк"]
+
+    for ban_word in ban_words:
+        if ban_word in msg:
+            raise ValueError("Use of ban words")
+
+    return msg
+
+
+Validmsgdep = Annotated[str, BeforeValidator(validmsg)]
+
+
+class FeedbackValidSchema(BaseModel):
+    name: str = Field(min_length=2, max_length=50)
+    message: Validmsgdep
+    contact: ContactSchema
+
+    @field_validator("name")
+    def validata_name(cls, name):
+        ban_words = ["редиск", "бяк", "козявк"]
+
+        for ban_word in ban_words:
+            if ban_word in name:
+                raise ValueError("Use of ban words")
+
+        return name
